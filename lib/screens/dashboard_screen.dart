@@ -192,7 +192,7 @@ class DashboardScreen extends ConsumerWidget {
                             isStrokeCapRound: true,
                             belowBarData: BarAreaData(
                               show: true,
-                              color: Colors.blue.withOpacity(0.3),
+                              color: Colors.blue.withValues(alpha: 0.3),
                             ),
                           ),
                         ],
@@ -429,7 +429,7 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -453,8 +453,8 @@ class _MetricCard extends StatelessWidget {
                       Text(
                         value,
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -462,12 +462,15 @@ class _MetricCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: color.shade100,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: color.shade600, size: 20),
+                  child: Center(
+                    child: Icon(icon, color: color.shade600, size: 20),
+                  ),
                 ),
               ],
             ),

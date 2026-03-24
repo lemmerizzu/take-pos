@@ -149,57 +149,70 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                       final product = filteredProducts[index];
                       return Card(
                         clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Colors.grey.shade200,
+                            width: 1,
+                          ),
+                        ),
                         child: InkWell(
                           onTap: product.stock > 0
                               ? () => ref
                                     .read(cartProvider.notifier)
                                     .addToCart(product)
                               : null,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  color: Colors.grey.shade200,
-                                  child: Icon(
-                                    LucideIcons.image,
-                                    color: Colors.grey.shade400,
-                                    size: 40,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      LucideIcons.package,
+                                      color: Colors.grey.shade400,
+                                      size: 48,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
+                                const SizedBox(height: 8),
+                                Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       product.name,
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
                                       ),
-                                      maxLines: 1,
+                                      maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
                                       '\$${product.price.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        color: Colors.blue.shade700,
+                                        color: Colors.blue.shade600,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      '${product.stock} in stock',
+                                      'Stock: ${product.stock}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: product.stock == 0
-                                            ? Colors.red
-                                            : Colors.grey,
+                                        color: Colors.grey.shade500,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -273,17 +286,28 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                             return ListTile(
                               title: Text(
                                 item.product.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Text(
                                 '\$${item.product.price.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 12,
+                                ),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(LucideIcons.minusCircle),
+                                    icon: Icon(
+                                      LucideIcons.minusCircle,
+                                      color: Colors.grey.shade600,
+                                    ),
                                     onPressed: () => ref
                                         .read(cartProvider.notifier)
                                         .updateCartQuantity(
@@ -294,11 +318,14 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                                   Text(
                                     '${item.quantity}',
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(LucideIcons.plusCircle),
+                                    icon: Icon(
+                                      LucideIcons.plusCircle,
+                                      color: Colors.grey.shade600,
+                                    ),
                                     onPressed: () => ref
                                         .read(cartProvider.notifier)
                                         .updateCartQuantity(
