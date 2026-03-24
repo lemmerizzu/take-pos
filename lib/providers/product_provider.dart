@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
-final productsProvider = NotifierProvider<ProductsNotifier, List<Product>>(
-  () {
-    return ProductsNotifier();
-  },
-);
+final productsProvider = NotifierProvider<ProductsNotifier, List<Product>>(() {
+  return ProductsNotifier();
+});
 
 class ProductsNotifier extends Notifier<List<Product>> {
   @override

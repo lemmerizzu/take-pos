@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
-final partnersProvider = NotifierProvider<PartnersNotifier, List<Partner>>(
-  () {
-    return PartnersNotifier();
-  },
-);
+final partnersProvider = NotifierProvider<PartnersNotifier, List<Partner>>(() {
+  return PartnersNotifier();
+});
 
 class PartnersNotifier extends Notifier<List<Partner>> {
   @override
