@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../models/models.dart';
 import '../providers/cart_provider.dart';
+import '../providers/partner_provider.dart';
 import '../providers/product_provider.dart';
 import '../providers/sales_provider.dart';
 
@@ -56,7 +58,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     // Filter products
     final categories = [
       'All',
-      ...products.map((p) => p.category).toSet().toList(),
+      ...products.map((p) => p.category).toSet(),
     ];
     final filteredProducts = products.where((p) {
       final matchesSearch =
@@ -122,7 +124,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                 padding: const EdgeInsets.all(8),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: isMobile ? 2 : 3,
-                  childAspectRatio: isMobile ? 0.7 : 0.8,
+                  childAspectRatio: isMobile ? 0.6 : 0.75,
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
                 ),
@@ -288,25 +290,57 @@ class CartWidget extends ConsumerWidget {
     final tax = subtotalAfterDiscount * 0.1; // 10%
     final total = subtotalAfterDiscount + tax;
 
+    final partners = ref.watch(partnersProvider);
+    final customers = partners.where((p) => p.type == 'customer').toList();
+    
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           color: Colors.grey.shade50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Current Order',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Current Order',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  if (cartState.items.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => ref.read(cartProvider.notifier).clearCart(),
+                      icon: const Icon(LucideIcons.trash2, size: 16),
+                      label: const Text('Clear'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    ),
+                ],
               ),
-              if (cartState.items.isNotEmpty)
-                TextButton.icon(
-                  onPressed: () => ref.read(cartProvider.notifier).clearCart(),
-                  icon: const Icon(LucideIcons.trash2, size: 16),
-                  label: const Text('Clear'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: 'Select Customer (Optional)',
+                  prefixIcon: const Icon(LucideIcons.user),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
+                // ignore: deprecated_member_use
+                value: cartState.selectedCustomerId,
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Walk-in Customer'),
+                  ),
+                  ...customers.map((c) => DropdownMenuItem(
+                    value: c.id,
+                    child: Text(c.name),
+                  )),
+                ],
+                onChanged: (val) {
+                  ref.read(cartProvider.notifier).setSelectedCustomerId(val);
+                },
+              ),
             ],
           ),
         ),
@@ -331,7 +365,7 @@ class CartWidget extends ConsumerWidget {
                 )
               : ListView.separated(
                   itemCount: cartState.items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (context, index) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = cartState.items[index];
                     return ListTile(
@@ -413,12 +447,24 @@ class CartWidget extends ConsumerWidget {
                     Text('\$${subtotal.toStringAsFixed(2)}'),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Discount'),
+                    TextButton.icon(
+                      onPressed: () => _showDiscountDialog(context, ref, cartState.cartDiscount),
+                      icon: const Icon(LucideIcons.tag, size: 16),
+                      label: Text(cartState.cartDiscount != null ? 'Edit Discount' : 'Add Discount'),
+                    ),
+                  ],
+                ),
                 if (totalDiscount > 0)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Discount',
+                        'Total Saved',
                         style: TextStyle(color: Colors.green),
                       ),
                       Text(
@@ -479,6 +525,79 @@ class CartWidget extends ConsumerWidget {
     );
   }
 
+  void _showDiscountDialog(BuildContext context, WidgetRef ref, Discount? currentDiscount) {
+    final isPercentage = currentDiscount?.type != 'fixed';
+    final typeNotifier = ValueNotifier<String>(isPercentage ? 'percentage' : 'fixed');
+    final valueCtrl = TextEditingController(text: currentDiscount?.value.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Apply Cart Discount'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'percentage', label: Text('Percentage %')),
+                      ButtonSegment(value: 'fixed', label: Text('Fixed \$')),
+                    ],
+                    selected: {typeNotifier.value},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setState(() {
+                        typeNotifier.value = newSelection.first;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: valueCtrl,
+                    decoration: InputDecoration(
+                      labelText: typeNotifier.value == 'percentage' ? 'Discount %' : 'Discount \$',
+                      border: const OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ],
+              );
+            }
+          ),
+          actions: [
+            if (currentDiscount != null)
+              TextButton(
+                onPressed: () {
+                  ref.read(cartProvider.notifier).setCartDiscount(null);
+                  Navigator.pop(context);
+                },
+                child: const Text('Remove', style: TextStyle(color: Colors.red)),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final val = double.tryParse(valueCtrl.text) ?? 0;
+                if (val > 0) {
+                  ref.read(cartProvider.notifier).setCartDiscount(Discount(
+                    type: typeNotifier.value,
+                    value: val,
+                    appliedTo: 'cart',
+                  ));
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showPaymentDialog(
     BuildContext context,
     double totalAmount,
@@ -487,70 +606,165 @@ class CartWidget extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Select Payment Method'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Total to Pay: \$${totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        return _PaymentVerificationDialog(totalAmount: totalAmount, ref: ref);
+      },
+    );
+  }
+}
+
+class _PaymentVerificationDialog extends StatefulWidget {
+  final double totalAmount;
+  final WidgetRef ref;
+
+  const _PaymentVerificationDialog({required this.totalAmount, required this.ref});
+
+  @override
+  State<_PaymentVerificationDialog> createState() => _PaymentVerificationDialogState();
+}
+
+class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> {
+  String _selectedMethod = 'cash';
+  final _tenderedCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tenderedCtrl.text = widget.totalAmount.toStringAsFixed(2);
+    _tenderedCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tenderedStr = _tenderedCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
+    final tenderedAmt = double.tryParse(tenderedStr) ?? 0.0;
+    final changeDue = tenderedAmt - widget.totalAmount;
+    final canComplete = _selectedMethod != 'cash' || tenderedAmt >= (widget.totalAmount - 0.01);
+
+    return AlertDialog(
+      title: const Text('Checkout Verification'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Total Due: \$${widget.totalAmount.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'cash', icon: Icon(LucideIcons.dollarSign), label: Text('Cash')),
+                ButtonSegment(value: 'card', icon: Icon(LucideIcons.creditCard), label: Text('Card')),
+                ButtonSegment(value: 'digital', icon: Icon(LucideIcons.smartphone), label: Text('Digital')),
+              ],
+              selected: {_selectedMethod},
+              onSelectionChanged: (Set<String> newSelection) {
+                setState(() {
+                  _selectedMethod = newSelection.first;
+                  if (_selectedMethod != 'cash') {
+                    _tenderedCtrl.text = widget.totalAmount.toStringAsFixed(2);
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 24),
+            if (_selectedMethod == 'cash')
+              Column(
+                children: [
+                  TextField(
+                    controller: _tenderedCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount Tendered',
+                      prefixIcon: Icon(LucideIcons.dollarSign),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _buildQuickAmount(widget.totalAmount),
+                      _buildQuickAmount(10.0),
+                      _buildQuickAmount(20.0),
+                      _buildQuickAmount(50.0),
+                      _buildQuickAmount(100.0),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: changeDue >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          changeDue >= 0 ? 'Change Due:' : 'Remaining:',
+                          style: TextStyle(fontSize: 18, color: changeDue >= 0 ? Colors.green.shade800 : Colors.red.shade800),
+                        ),
+                        Text(
+                          '\$${changeDue.abs().toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: changeDue >= 0 ? Colors.green.shade800 : Colors.red.shade800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            if (_selectedMethod != 'cash')
+              Container(
+                padding: const EdgeInsets.all(24),
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    const Icon(LucideIcons.nfc, size: 48, color: Colors.blue),
+                    const SizedBox(height: 16),
+                    Text('Awaiting ${_selectedMethod == 'card' ? 'Terminal' : 'Customer'}...', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              ListTile(
-                leading: const Icon(LucideIcons.dollarSign),
-                title: const Text('Cash'),
-                onTap: () {
-                  final messenger = ScaffoldMessenger.of(context);
-                  ref.read(salesProvider.notifier).completeSale('cash');
-                  Navigator.pop(context);
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Sale completed successfully!'),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(LucideIcons.creditCard),
-                title: const Text('Card'),
-                onTap: () {
-                  final messenger = ScaffoldMessenger.of(context);
-                  ref.read(salesProvider.notifier).completeSale('card');
-                  Navigator.pop(context);
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Sale completed successfully!'),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(LucideIcons.smartphone),
-                title: const Text('Digital Wallet'),
-                onTap: () {
-                  final messenger = ScaffoldMessenger.of(context);
-                  ref.read(salesProvider.notifier).completeSale('digital');
-                  Navigator.pop(context);
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Sale completed successfully!'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
           ],
-        );
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: canComplete ? () {
+            final messenger = ScaffoldMessenger.of(context);
+            widget.ref.read(salesProvider.notifier).completeSale(_selectedMethod);
+            Navigator.pop(context);
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Sale completed successfully!'), backgroundColor: Colors.green),
+            );
+          } : null,
+          icon: const Icon(LucideIcons.checkCheck),
+          label: const Text('Complete Sale', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickAmount(double amount) {
+    return ActionChip(
+      label: Text(amount == widget.totalAmount ? 'Exact' : '\$${amount.toStringAsFixed(0)}'),
+      onPressed: () {
+        setState(() {
+          _tenderedCtrl.text = amount.toStringAsFixed(2);
+        });
       },
     );
   }

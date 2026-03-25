@@ -253,7 +253,7 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                     ],
                   ),
                 ),
@@ -300,44 +300,47 @@ class DashboardScreen extends ConsumerWidget {
                             height: isMobile ? 24 : 0,
                             width: isMobile ? 0 : 24,
                           ),
-                          Expanded(
-                            flex: isMobile ? 0 : 1,
-                            child: Column(
-                              children: categoryData.asMap().entries.map((
-                                entry,
-                              ) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(
-                                          color:
-                                              colors[entry.key % colors.length],
-                                          shape: BoxShape.circle,
-                                        ),
+                          LayoutBuilder(
+                            builder: (context, _) {
+                              Widget colBlock = Column(
+                                children: [
+                                  ...categoryData.asMap().entries.map((
+                                    entry,
+                                  ) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color: colors[entry.key % colors.length],
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              entry.value['name'] as String,
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${entry.value['value']}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          entry.value['name'] as String,
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                      ),
-                                      Text(
-                                        '${entry.value['value']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
+                                    );
+                                  }),
+                                ],
+                              );
+                              return isMobile ? colBlock : Expanded(child: colBlock);
+                            },
                           ),
                         ],
                       ),
@@ -418,7 +421,7 @@ class DashboardScreen extends ConsumerWidget {
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
@@ -435,7 +438,7 @@ class _MetricCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final MaterialColor color;
+  final Color color;
 
   const _MetricCard({
     required this.title,
@@ -446,60 +449,62 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          value,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(icon, color: color.shade600, size: 18),
-                  ),
-                ),
-              ],
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: color, width: 4)),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(8),
+          bottomRight: Radius.circular(8),
         ),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 6),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: color),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(icon, color: color.withOpacity(0.7), size: 22),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
+
+

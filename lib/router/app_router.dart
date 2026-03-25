@@ -44,11 +44,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/inventory',
-                builder: (context, state) => const InventoryScreen(),
+                builder: (context, state) => const InventoryLogScreen(),
                 routes: [
                   GoRoute(
-                    path: 'logs',
-                    builder: (context, state) => const InventoryLogScreen(),
+                    path: 'products',
+                    builder: (context, state) => const InventoryScreen(),
                   ),
                 ],
               ),
