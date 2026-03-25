@@ -62,61 +62,120 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 final product = filteredProducts[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        LucideIcons.package,
-                        color: Colors.blue.shade600,
-                      ),
-                    ),
-                    title: Text(
-                      product.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
                       children: [
-                        Text(
-                          'SKU: ${product.sku} | Category: ${product.category}',
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                LucideIcons.package,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'SKU: ${product.sku}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Category: ${product.category}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '\$${product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          'Stock: ${product.stock}',
-                          style: TextStyle(
-                            color: product.stock < 20
-                                ? Colors.red
-                                : Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '\$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(LucideIcons.pencil),
-                          onPressed: () => _showProductDialog(context, product),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            LucideIcons.trash2,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _confirmDelete(context, product),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: product.stock < 20
+                                    ? Colors.red.shade50
+                                    : Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Stock: ${product.stock}',
+                                style: TextStyle(
+                                  color: product.stock < 20
+                                      ? Colors.red.shade700
+                                      : Colors.green.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    LucideIcons.pencil,
+                                    size: 20,
+                                  ),
+                                  onPressed: () =>
+                                      _showProductDialog(context, product),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    LucideIcons.trash2,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  onPressed: () =>
+                                      _confirmDelete(context, product),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -143,11 +202,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ),
           TextButton(
             onPressed: () {
+              final messenger = ScaffoldMessenger.of(context);
               ref.read(productsProvider.notifier).deleteProduct(product.id);
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Product deleted')));
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Product deleted')),
+              );
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -235,20 +295,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 barcode: barcodeCtrl.text.isEmpty ? null : barcodeCtrl.text,
               );
 
+              final messenger = ScaffoldMessenger.of(context);
               if (product == null) {
                 ref.read(productsProvider.notifier).addProduct(newProduct);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Product added')));
+                Navigator.pop(context);
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Product added')),
+                );
               } else {
                 ref
                     .read(productsProvider.notifier)
                     .updateProduct(product.id, newProduct);
-                ScaffoldMessenger.of(context).showSnackBar(
+                Navigator.pop(context);
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Product updated')),
                 );
               }
-              Navigator.pop(context);
             },
             child: const Text('Save'),
           ),

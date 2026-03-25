@@ -227,19 +227,6 @@ class _PartnersScreenState extends ConsumerState<PartnersScreen> {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(LucideIcons.edit2, size: 20),
-                              onPressed: () =>
-                                  _showPartnerDialog(context, partner),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                LucideIcons.trash2,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              onPressed: () => _confirmDelete(context, partner),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -307,6 +294,26 @@ class _PartnersScreenState extends ConsumerState<PartnersScreen> {
                               ],
                             ),
                           ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () =>
+                                  _showPartnerDialog(context, partner),
+                              icon: const Icon(LucideIcons.edit2, size: 16),
+                              label: const Text('Edit'),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _confirmDelete(context, partner),
+                              icon: const Icon(LucideIcons.trash2, size: 16),
+                              label: const Text('Delete'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -334,11 +341,12 @@ class _PartnersScreenState extends ConsumerState<PartnersScreen> {
           ),
           TextButton(
             onPressed: () {
+              final messenger = ScaffoldMessenger.of(context);
               ref.read(partnersProvider.notifier).deletePartner(partner.id);
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Partner deleted')));
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Partner deleted')),
+              );
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -448,20 +456,22 @@ class _PartnersScreenState extends ConsumerState<PartnersScreen> {
                     notes: notesCtrl.text.isEmpty ? null : notesCtrl.text,
                   );
 
+                  final messenger = ScaffoldMessenger.of(context);
                   if (partner == null) {
                     ref.read(partnersProvider.notifier).addPartner(newPartner);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    Navigator.pop(context);
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('Partner added')),
                     );
                   } else {
                     ref
                         .read(partnersProvider.notifier)
                         .updatePartner(partner.id, newPartner);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    Navigator.pop(context);
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('Partner updated')),
                     );
                   }
-                  Navigator.pop(context);
                 },
                 child: const Text('Save'),
               ),
