@@ -44,23 +44,25 @@ class InventoryNotifier extends Notifier<List<InventoryLog>> {
   }
 
   String _nextDocNumber(String type) {
-    final prefix = type == 'IN'
-        ? 'INV-IN'
-        : type == 'REJECT'
-            ? 'INV-REJ'
-            : 'INV-OUT';
+    String prefix = 'INV-LOG';
+    if (type == 'IN') prefix = 'INV-IN';
+    else if (type == 'REJECT') prefix = 'INV-REJ';
+    else if (type == 'OUT') prefix = 'INV-OUT';
+    else if (type == 'IN_DEFECT') prefix = 'INV-DEF';
+    else if (type == 'OUT_CLAIM') prefix = 'INV-CLM';
+
     final count = state.where((l) => l.type == type).length + 1;
     return '$prefix-${count.toString().padLeft(6, '0')}';
   }
 
-  /// Auto log created by sale (type=OUT, no stock update since provider handles it)
+  /// Auto log created by sale or manual action
   Future<void> addInventoryLog({
     required String type,
     required List<InventoryLogItem> items,
     required String reason,
     String? reference,
-    String? supplierId,
-    String? supplierName,
+    String? partnerId,
+    String? partnerName,
     String? notes,
   }) async {
     final newLog = InventoryLog(
@@ -71,8 +73,11 @@ class InventoryNotifier extends Notifier<List<InventoryLog>> {
       items: items,
       reason: reason,
       reference: reference,
-      supplierId: supplierId,
-      supplierName: supplierName,
+      partnerId: partnerId,
+      partnerName: partnerName,
+      // Keep legacy fields for a bit or just null them
+      supplierId: partnerId,
+      supplierName: partnerName,
       notes: notes,
     );
 
@@ -88,34 +93,36 @@ class InventoryNotifier extends Notifier<List<InventoryLog>> {
     }
   }
 
-  /// Manual IN or REJECT entry from supplier — also adjusts product stock
+  /// Manual entry: IN/REJECT (Supplier) or IN_DEFECT/OUT_CLAIM (Customer)
   Future<void> recordManualMovement({
-    required String type, // 'IN' or 'REJECT'
+    required String type,
     required List<InventoryLogItem> items,
     required String reason,
-    String? supplierId,
-    String? supplierName,
+    String? partnerId,
+    String? partnerName,
     String? reference,
     String? notes,
   }) async {
-    // Create the log entry
     await addInventoryLog(
       type: type,
       items: items,
       reason: reason,
-      supplierId: supplierId,
-      supplierName: supplierName,
+      partnerId: partnerId,
+      partnerName: partnerName,
       reference: reference,
       notes: notes,
     );
 
     // Adjust stock:
-    //  IN  → positive delta
-    //  REJECT → negative delta
-    final sign = type == 'IN' ? 1 : -1;
+    //  IN, IN_DEFECT  → Stock increases (+)
+    //  REJECT, OUT_CLAIM → Stock decreases (-)
+    final isPositive = type == 'IN' || type == 'IN_DEFECT';
+    final sign = isPositive ? 1 : -1;
+    
     final adjustments = items
         .map((i) => (productId: i.productId, qty: i.quantity * sign))
         .toList();
     await ref.read(productsProvider.notifier).adjustStock(adjustments);
   }
 }
+

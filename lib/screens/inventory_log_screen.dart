@@ -76,24 +76,31 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
           Container(
             color: const Color(0xFFF8F9FA),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                _filterChip('All', 'ALL'),
-                const SizedBox(width: 6),
-                _filterChip('IN', 'IN', color: Colors.green),
-                const SizedBox(width: 6),
-                _filterChip('OUT', 'OUT', color: Colors.orange),
-                const SizedBox(width: 6),
-                _filterChip('REJECT', 'REJECT', color: Colors.red),
-                const Spacer(),
-                Text(
-                  '${filtered.length} log${filtered.length != 1 ? 's' : ''}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500),
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _filterChip('All', 'ALL'),
+                  const SizedBox(width: 6),
+                  _filterChip('IN', 'IN', color: Colors.green),
+                  const SizedBox(width: 6),
+                  _filterChip('OUT', 'OUT', color: Colors.orange),
+                  const SizedBox(width: 6),
+                  _filterChip('REJECT', 'REJECT', color: Colors.red),
+                  const SizedBox(width: 6),
+                  _filterChip('DEFECT', 'IN_DEFECT', color: Colors.green),
+                  const SizedBox(width: 6),
+                  _filterChip('CLAIM', 'OUT_CLAIM', color: Colors.red),
+                  const SizedBox(width: 16),
+                  Text(
+                    '${filtered.length} log${filtered.length != 1 ? 's' : ''}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
             ),
           ),
           const Divider(),
@@ -126,14 +133,14 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
                       final dateStr = DateFormat('MMM d, y · h:mm a')
                           .format(DateTime.parse(log.date));
 
-                      final typeColor = log.type == 'IN'
+                      final typeColor = log.type == 'IN' || log.type == 'IN_DEFECT'
                           ? Colors.green
                           : log.type == 'OUT'
                               ? Colors.orange
                               : Colors.red;
-                      final typeIcon = log.type == 'IN'
+                      final typeIcon = log.type == 'IN' || log.type == 'IN_DEFECT'
                           ? LucideIcons.arrowDownCircle
-                          : log.type == 'OUT'
+                          : log.type == 'OUT' || log.type == 'OUT_CLAIM'
                               ? LucideIcons.arrowUpCircle
                               : LucideIcons.alertCircle;
 
@@ -155,8 +162,8 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13)),
                                 ),
-                                if (log.supplierName != null)
-                                  Text(log.supplierName!,
+                                if (log.partnerName != null || log.supplierName != null)
+                                  Text(log.partnerName ?? log.supplierName!,
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.shade600)),
@@ -171,7 +178,7 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             trailing: Chip(
-                              label: Text(log.type),
+                              label: Text(log.type.replaceAll('_', ' ')),
                               backgroundColor:
                                   typeColor.withValues(alpha: 0.12),
                               labelStyle: TextStyle(
@@ -182,6 +189,7 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
                             onTap: () => setState(() =>
                                 _expandedId = isExpanded ? null : log.id),
                           ),
+// ... (rest of the ListTile and expansion logic remains same until _ManualEntryForm)
                           if (isExpanded)
                             Container(
                               color: const Color(0xFFF8F9FA),
@@ -227,8 +235,8 @@ class _InventoryLogScreenState extends ConsumerState<InventoryLogScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showManualEntrySheet(context),
-        icon: const Icon(LucideIcons.clipboardEdit),
-        label: const Text('Record'),
+        icon: const Icon(LucideIcons.plus, size: 20),
+        label: const Text('Log'),
         tooltip: 'Record stock movement',
       ),
     );
@@ -283,7 +291,7 @@ class _ManualEntryForm extends ConsumerStatefulWidget {
 
 class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
   String _type = 'IN';
-  Partner? _supplier;
+  Partner? _selectedPartner;
   final _referenceCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -303,11 +311,20 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
 
   @override
   Widget build(BuildContext context) {
-    final suppliers = ref.watch(partnersProvider)
-        .where((p) => p.type == 'supplier')
-        .toList();
+    final partners = ref.watch(partnersProvider);
+    final logs = ref.watch(inventoryProvider);
     final products = ref.watch(productsProvider);
     final kb = MediaQuery.of(context).viewInsets.bottom;
+
+    // Filter partners based on type context
+    // IN, REJECT -> Supplier
+    // IN_DEFECT, OUT_CLAIM -> Customer
+    final isSupplierContext = _type == 'IN' || _type == 'REJECT';
+    final targetPartnerType = isSupplierContext ? 'supplier' : 'customer';
+    final filteredPartners = partners.where((p) => p.type == targetPartnerType).toList();
+
+    // Get unique reasons from history for suggestions
+    final historyReasons = logs.map((l) => l.reason).toSet().toList();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 16, 20, kb + 24),
@@ -331,99 +348,132 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
           const SizedBox(height: 16),
 
           // Type toggle
-          Row(
-            children: [
-              const Text('Type:',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 12),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(
-                      value: 'IN',
-                      icon: Icon(LucideIcons.arrowDownCircle, size: 14),
-                      label: Text('Incoming (IN)')),
-                  ButtonSegment(
-                      value: 'REJECT',
-                      icon: Icon(LucideIcons.alertCircle, size: 14),
-                      label: Text('Rejected')),
-                ],
-                selected: {_type},
-                onSelectionChanged: (v) => setState(() => _type = v.first),
-              ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                    value: 'IN',
+                    label: Text('IN', style: TextStyle(fontSize: 11))),
+                ButtonSegment(
+                    value: 'REJECT',
+                    label: Text('REJ', style: TextStyle(fontSize: 11))),
+                ButtonSegment(
+                    value: 'IN_DEFECT',
+                    label: Text('DEFECT', style: TextStyle(fontSize: 11))),
+                ButtonSegment(
+                    value: 'OUT_CLAIM',
+                    label: Text('CLAIM', style: TextStyle(fontSize: 11))),
+              ],
+              selected: {_type},
+              onSelectionChanged: (v) => setState(() {
+                _type = v.first;
+                _selectedPartner = null; // Reset partner when type changes
+              }),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Partner dropdown (Supplier or Customer context)
+          DropdownButtonFormField<Partner>(
+            value: _selectedPartner,
+            decoration: InputDecoration(
+              labelText: isSupplierContext ? 'Supplier' : 'Customer',
+              prefixIcon: Icon(isSupplierContext ? LucideIcons.truck : LucideIcons.user, size: 16),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('— None —')),
+              ...filteredPartners.map((p) => DropdownMenuItem(value: p, child: Text(p.name))),
             ],
+            onChanged: (v) => setState(() => _selectedPartner = v),
           ),
           const SizedBox(height: 12),
 
-          // Supplier dropdown
-          if (suppliers.isNotEmpty)
-            DropdownButtonFormField<Partner>(
-              value: _supplier,
-              decoration: InputDecoration(
-                labelText: 'Supplier (Optional)',
-                prefixIcon: const Icon(LucideIcons.truck, size: 16),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6)),
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('— None —')),
-                ...suppliers.map((s) => DropdownMenuItem(
-                    value: s, child: Text(s.name))),
-              ],
-              onChanged: (v) => setState(() => _supplier = v),
-            ),
-          const SizedBox(height: 10),
-
-          // Reference and Reason
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _referenceCtrl,
                   decoration: InputDecoration(
-                    labelText: 'PO / Reference',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                    labelText: 'Reference',
+                    hintText: 'e.g. PO-123',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
+              // Reason Autocomplete
               Expanded(
-                child: TextField(
-                  controller: _reasonCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Reason *',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                  ),
+                child: RawAutocomplete<String>(
+                  textEditingController: _reasonCtrl,
+                  focusNode: FocusNode(),
+                  optionsBuilder: (TextEditingValue value) {
+                    if (value.text.isEmpty) return historyReasons;
+                    return historyReasons.where((r) => r.toLowerCase().contains(value.text.toLowerCase()));
+                  },
+                  onSelected: (String selection) {
+                    _reasonCtrl.text = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Reason *',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 200,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final option = options.elementAt(index);
+                              return ListTile(
+                                dense: true,
+                                title: Text(option, style: const TextStyle(fontSize: 13)),
+                                onTap: () => onSelected(option),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           // Notes
           TextField(
             controller: _notesCtrl,
             decoration: InputDecoration(
-              labelText: 'Notes',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              labelText: 'Notes (Optional)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Product entries
           const Text('Products',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A73E8))),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1A73E8))),
           const SizedBox(height: 6),
 
           ..._entries.map((entry) {
@@ -432,10 +482,8 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
               dense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
               leading: const Icon(LucideIcons.package, size: 16),
-              title: Text(entry.product.name,
-                  style: const TextStyle(fontSize: 13)),
-              subtitle: Text(entry.product.sku,
-                  style: const TextStyle(fontSize: 11)),
+              title: Text(entry.product.name, style: const TextStyle(fontSize: 13)),
+              subtitle: Text(entry.product.sku, style: const TextStyle(fontSize: 11)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -449,11 +497,18 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text('${entry.qty}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
+                  InkWell(
+                    onTap: () => _editQtyDialog(context, idx, entry.qty),
+                    child: Container(
+
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text('${entry.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(LucideIcons.plus, size: 14),
@@ -465,10 +520,8 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    icon: const Icon(LucideIcons.trash2,
-                        size: 14, color: Colors.red),
-                    onPressed: () =>
-                        setState(() => _entries.removeAt(idx)),
+                    icon: const Icon(LucideIcons.trash2, size: 14, color: Colors.red),
+                    onPressed: () => setState(() => _entries.removeAt(idx)),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -490,11 +543,7 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
             child: FilledButton(
               onPressed: _saving || _entries.isEmpty ? null : _submit,
               child: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text('Save Movement'),
             ),
           ),
@@ -503,12 +552,41 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
     );
   }
 
+  void _editQtyDialog(BuildContext context, int index, int currentQty) {
+    final ctrl = TextEditingController(text: currentQty.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Quantity'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final val = int.tryParse(ctrl.text) ?? currentQty;
+              setState(() {
+                _entries[index] = (product: _entries[index].product, qty: val);
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   void _pickProduct(List<Product> products) {
     final alreadyAdded = _entries.map((e) => e.product.id).toSet();
     final available = products.where((p) => !alreadyAdded.contains(p.id)).toList();
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All products already added')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All products already added')));
       return;
     }
 
@@ -529,30 +607,22 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
                 final p = available[i];
                 return ListTile(
                   dense: true,
-                  title: Text(p.name,
-                      style: const TextStyle(fontSize: 13)),
-                  subtitle: Text('${p.sku} · stock: ${p.stock}',
-                      style: const TextStyle(fontSize: 11)),
+                  title: Text(p.name, style: const TextStyle(fontSize: 13)),
+                  subtitle: Text('${p.sku} · stock: ${p.stock}', style: const TextStyle(fontSize: 11)),
                   selected: selected?.id == p.id,
-                  selectedTileColor:
-                      const Color(0xFFE8F0FE),
+                  selectedTileColor: const Color(0xFFE8F0FE),
                   onTap: () => setS(() => selected = p),
                 );
               },
             ),
           ),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             FilledButton(
-              onPressed: selected == null
-                  ? null
-                  : () {
-                      setState(
-                          () => _entries.add((product: selected!, qty: 1)));
-                      Navigator.pop(ctx);
-                    },
+              onPressed: selected == null ? null : () {
+                setState(() => _entries.add((product: selected!, qty: 1)));
+                Navigator.pop(ctx);
+              },
               child: const Text('Add'),
             ),
           ],
@@ -563,8 +633,7 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
 
   Future<void> _submit() async {
     if (_reasonCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reason is required')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reason is required')));
       return;
     }
     setState(() => _saving = true);
@@ -582,14 +651,10 @@ class _ManualEntryFormState extends ConsumerState<_ManualEntryForm> {
           type: _type,
           items: items,
           reason: _reasonCtrl.text.trim(),
-          supplierId: _supplier?.id,
-          supplierName: _supplier?.name,
-          reference: _referenceCtrl.text.trim().isEmpty
-              ? null
-              : _referenceCtrl.text.trim(),
-          notes: _notesCtrl.text.trim().isEmpty
-              ? null
-              : _notesCtrl.text.trim(),
+          partnerId: _selectedPartner?.id,
+          partnerName: _selectedPartner?.name,
+          reference: _referenceCtrl.text.trim().isEmpty ? null : _referenceCtrl.text.trim(),
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         );
 
     if (mounted) {

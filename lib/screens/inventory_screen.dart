@@ -531,18 +531,56 @@ class _ProductFormDialogState extends ConsumerState<_ProductFormDialog> {
                   IconButton(
                     onPressed: () => setS(() { if (qty > 1) qty--; }),
                     icon: const Icon(LucideIcons.minus, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                  Text('$qty',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  InkWell(
+                    onTap: () {
+                      final ctrl = TextEditingController(text: qty.toString());
+                      showDialog(
+                        context: context,
+                        builder: (ctx2) => AlertDialog(
+                          title: const Text('Edit Quantity'),
+                          content: TextField(
+                            controller: ctrl,
+                            keyboardType: TextInputType.number,
+                            autofocus: true,
+                            decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()),
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx2), child: const Text('Cancel')),
+                            FilledButton(
+                              onPressed: () {
+                                setS(() => qty = int.tryParse(ctrl.text) ?? qty);
+                                Navigator.pop(ctx2);
+                              },
+                              child: const Text('Apply'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ),
                   IconButton(
                     onPressed: () => setS(() => qty++),
                     icon: const Icon(LucideIcons.plus, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
             ],
           ),
+
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),

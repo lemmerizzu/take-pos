@@ -34,11 +34,13 @@ class InventoryLog {
   final String id;
   final String documentNumber; // e.g., "INV-IN-000001"
   final String date;
-  final String type; // 'IN' | 'OUT' | 'REJECT'
+  final String type; // 'IN' | 'OUT' | 'REJECT' | 'IN_DEFECT' | 'OUT_CLAIM'
   final List<InventoryLogItem> items;
   final String reason;
   final String? reference; // e.g., Sale ID, Purchase Order, etc.
-  final String? supplierId;
+  final String? partnerId;   // Generalized for Supplier/Customer
+  final String? partnerName;
+  final String? supplierId;   // Keep for backward compatibility/legacy
   final String? supplierName;
   final String? performedBy;
   final String? notes;
@@ -51,6 +53,8 @@ class InventoryLog {
     required this.items,
     required this.reason,
     this.reference,
+    this.partnerId,
+    this.partnerName,
     this.supplierId,
     this.supplierName,
     this.performedBy,
@@ -68,6 +72,8 @@ class InventoryLog {
           .toList(),
       reason: json['reason'] as String,
       reference: json['reference'] as String?,
+      partnerId: json['partnerId'] as String?,
+      partnerName: json['partnerName'] as String?,
       supplierId: json['supplierId'] as String?,
       supplierName: json['supplierName'] as String?,
       performedBy: json['performedBy'] as String?,
@@ -84,6 +90,8 @@ class InventoryLog {
       'items': items.map((e) => e.toJson()).toList(),
       'reason': reason,
       if (reference != null) 'reference': reference,
+      if (partnerId != null) 'partnerId': partnerId,
+      if (partnerName != null) 'partnerName': partnerName,
       if (supplierId != null) 'supplierId': supplierId,
       if (supplierName != null) 'supplierName': supplierName,
       if (performedBy != null) 'performedBy': performedBy,
